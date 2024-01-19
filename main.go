@@ -31,7 +31,7 @@ func main() {
 	sending := false
 	ip := ""
 
-	flag.StringVar(&root, "p", "./", "Set the root or filepath") // check if dir or not
+	flag.StringVar(&root, "p", "./", "Set the root or filepath")                           // check if dir or not
 	flag.StringVar(&ip, "i", "", "Set your ip and port adress in <127.0.0.1:8080> format") // check if dir or not
 	flag.BoolVar(&sending, "s", false, "set this if you are sending data")
 	flag.Parse()
@@ -64,7 +64,7 @@ func main() {
 				if err == io.EOF {
 					fmt.Println("breaking here")
 					break
-				}else if bytesRead == 0 {
+				} else if bytesRead == 0 {
 					fmt.Println("Done sending", file.Name())
 					break
 				}
@@ -85,7 +85,7 @@ func main() {
 				idx = 0
 				for i := 2300; i < 2308; i++ {
 					testbuff[i] = b[idx]
-					idx ++ 
+					idx++
 				}
 				conn.Write(testbuff)
 
@@ -116,7 +116,7 @@ func main() {
 				return
 			}
 
-			err = handle_data(buffer);
+			err = handle_data(buffer)
 			if err != nil {
 				log.Fatalln(err)
 				return
@@ -131,24 +131,58 @@ func handle_data(buff []byte) error {
 	offset_buff := buff[2300:2308]
 
 	path := get_data(path_buff, 300)
-	content :=  get_data(content_buff,2000)
+	content := get_data(content_buff, 2000)
 	offset := binary.LittleEndian.Uint64(offset_buff)
 
-	file,err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+	directory, fppath := filepath.Split(path)
+	if len(directory) == 0 {
+		file, err := os.OpenFile(fppath, os.O_RDWR|os.O_CREATE, 0666)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		_, err = file.WriteAt([]byte(content), int64(offset))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 
-	_ ,err = file.WriteAt([]byte(content), int64(offset))
-	if err != nil {
-		log.Println(err)
-		return err
-	}
+		return nil
+	} else {
 
-	return nil
+		err := os.MkdirAll(directory, os.ModePerm)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		_, err = file.WriteAt([]byte(content), int64(offset))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		return nil
+	}
+	// file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return err
+	// }
+
+	// _, err = file.WriteAt([]byte(content), int64(offset))
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return err
+	// }
+
+	// return nil
 }
-
 
 // func test_receive(cnt []byte) {
 // 	path_buff := cnt[0:300]
@@ -173,7 +207,6 @@ func get_data(data []byte, size int) string {
 	return string(content)
 }
 
-
 func gen_password(length uint8) string {
 	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
 	b := make([]byte, length)
@@ -184,7 +217,6 @@ func gen_password(length uint8) string {
 	}
 	return string(b)
 }
-
 
 func Package_filepath(path string) [FPSIZE]uint8 {
 	var fl_path_arr [FPSIZE]uint8
