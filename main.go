@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"runtime"
 
 	// "io"
 	"log"
@@ -152,6 +153,11 @@ func handle_data(buff []byte) error {
 
 		return nil
 	} else {
+		// TODO: parse directory and replace 
+		if runtime.GOOS == "openbsd" {
+			directory = strings.ReplaceAll("\\", directory, "/")
+			path = strings.ReplaceAll("\\", path, "/")
+		}
 
 		err := os.MkdirAll(directory, os.ModePerm)
 		if err != nil {
@@ -175,16 +181,6 @@ func handle_data(buff []byte) error {
 	}
 }
 
-// func test_receive(cnt []byte) {
-// 	path_buff := cnt[0:300]
-// 	content_buff := cnt[300:2300]
-// 	offset_buff := cnt[2300:2308]
-// 	path := get_data(path_buff, 300)
-// 	content :=  get_data(content_buff,2000)
-// 	offset := binary.LittleEndian.Uint64(offset_buff)
-// 	fmt.Println(path,"OFFSET: ", offset)
-// 	fmt.Println(content)
-// }
 
 func get_data(data []byte, size int) string {
 	content := make([]byte, size)
