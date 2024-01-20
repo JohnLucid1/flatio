@@ -23,6 +23,7 @@ const (
 	PSSIZE = 100
 )
 
+// TODO:
 // TODO: implement incription based on a key :)
 // TODO: Add a readme
 // TODO: needs refactoring
@@ -52,6 +53,7 @@ func main() {
 		for _, value := range files {
 			file_buff := make([]byte, FLSIZE)
 			file_path_buff := Package_filepath(value)
+			offset := 0
 
 			file, err := os.Open(value)
 			if err != nil {
@@ -81,7 +83,8 @@ func main() {
 				}
 
 				b := make([]byte, 8)
-				binary.LittleEndian.PutUint64(b, uint64(bytesRead))
+				binary.LittleEndian.PutUint64(b, uint64(offset))
+				offset += bytesRead
 				idx = 0
 				for i := 2300; i < 2308; i++ {
 					testbuff[i] = b[idx]
@@ -166,22 +169,10 @@ func handle_data(buff []byte) error {
 			log.Println(err)
 			return err
 		}
+		file.Close()
 
 		return nil
 	}
-	// file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0666)
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return err
-	// }
-
-	// _, err = file.WriteAt([]byte(content), int64(offset))
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return err
-	// }
-
-	// return nil
 }
 
 // func test_receive(cnt []byte) {
