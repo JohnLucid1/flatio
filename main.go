@@ -137,21 +137,21 @@ func handle_data(buff []byte) error {
 	content := get_data(content_buff, 2000)
 	offset := binary.LittleEndian.Uint64(offset_buff)
 
-	directory, fppath := filepath.Split(path)
-	if len(directory) == 0 {
-		file, err := os.OpenFile(fppath, os.O_RDWR|os.O_CREATE, 0666)
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		_, err = file.WriteAt([]byte(content), int64(offset))
-		if err != nil {
-			log.Println(err)
-			return err
-		}
+	directory, _ := filepath.Split(path)
+	// if len(directory) == 0 {
+	// 	file, err := os.OpenFile(fppath, os.O_RDWR|os.O_CREATE, 0666)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		return err
+	// 	}
+	// 	_, err = file.WriteAt([]byte(content), int64(offset))
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		return err
+	// 	}
 
-		return nil
-	} else {
+	// 	return nil
+	// } else {
 
 		err := os.MkdirAll(directory, os.ModePerm)
 		if err != nil {
@@ -172,7 +172,7 @@ func handle_data(buff []byte) error {
 		file.Close()
 
 		return nil
-	}
+	// }
 }
 
 // func test_receive(cnt []byte) {
@@ -189,13 +189,15 @@ func handle_data(buff []byte) error {
 func get_data(data []byte, size int) string {
 	content := make([]byte, size)
 
+	idx := 0
 	for i := 0; i < size; i++ {
 		if data[i] == '\000' {
 			break
 		}
 		content[i] = data[i]
+		idx ++
 	}
-	return string(content)
+	return string(content[:idx])
 }
 
 func gen_password(length uint8) string {
@@ -209,10 +211,10 @@ func gen_password(length uint8) string {
 	return string(b)
 }
 
-func Package_filepath(path string) [FPSIZE]uint8 {
-	var fl_path_arr [FPSIZE]uint8
+func Package_filepath(path string) [FPSIZE]byte {
+	var fl_path_arr [FPSIZE]byte
 	for key, value := range path {
-		fl_path_arr[key] = uint8(value)
+		fl_path_arr[key] = byte(value)
 	}
 
 	return fl_path_arr
