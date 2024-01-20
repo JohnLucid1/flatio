@@ -137,21 +137,21 @@ func handle_data(buff []byte) error {
 	content := get_data(content_buff, 2000)
 	offset := binary.LittleEndian.Uint64(offset_buff)
 
-	directory, _ := filepath.Split(path)
-	// if len(directory) == 0 {
-	// 	file, err := os.OpenFile(fppath, os.O_RDWR|os.O_CREATE, 0666)
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		return err
-	// 	}
-	// 	_, err = file.WriteAt([]byte(content), int64(offset))
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		return err
-	// 	}
+	directory, fppath := filepath.Split(path)
+	if len(directory) == 0 {
+		file, err := os.OpenFile(fppath, os.O_RDWR|os.O_CREATE, 0666)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		_, err = file.WriteAt([]byte(content), int64(offset))
+		if err != nil {
+			log.Println(err)
+			return err
+		}
 
-	// 	return nil
-	// } else {
+		return nil
+	} else {
 
 		err := os.MkdirAll(directory, os.ModePerm)
 		if err != nil {
@@ -172,7 +172,7 @@ func handle_data(buff []byte) error {
 		file.Close()
 
 		return nil
-	// }
+	}
 }
 
 // func test_receive(cnt []byte) {
