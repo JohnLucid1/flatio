@@ -154,7 +154,7 @@ func handle_data(buff []byte) error {
 		return nil
 	} else {
 		// TODO: parse directory and replace 
-		if runtime.GOOS == "openbsd" {
+		if runtime.GOOS == "darwin" {
 			directory = strings.ReplaceAll("\\", directory, "/")
 			path = strings.ReplaceAll("\\", path, "/")
 		}
