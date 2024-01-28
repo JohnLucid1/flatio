@@ -127,7 +127,7 @@ func main() {
 				//TODO: conn.Write(final)
 			}
 		}
-		conn.Close()
+		// conn.Close()
 
 	} else { // Receiving
 		listener, err := net.Listen("tcp", ip)
