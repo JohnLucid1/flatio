@@ -55,13 +55,12 @@ func main() {
 		err = binary.Read(conn, binary.BigEndian, &endianness_indicator)
 		if err != nil {
 			log.Fatalln(err.Error())
-			return	
+			return
 		}
 		var byte_order binary.ByteOrder
-
-		if endianness_indicator == 0x12345678{ 
+		if endianness_indicator == 0x12345678 {
 			byte_order = binary.BigEndian
-		}else if endianness_indicator == 0x78563412 {
+		} else if endianness_indicator == 0x78563412 {
 			byte_order = binary.LittleEndian
 		}
 
@@ -76,7 +75,7 @@ func main() {
 			}
 
 			content_buff := make([]byte, FLSIZE)
-			file_path_buff := []byte(value) 
+			file_path_buff := []byte(value)
 			offset := 0
 
 			for {
@@ -91,7 +90,7 @@ func main() {
 
 				final := make([]byte, WHOLE)
 				copy(final[0:len(filepath_buff)], filepath_buff)
-				
+
 				content_size := make([]byte, 8)
 				byte_order.PutUint64(content_size, uint64(bytesRead))
 				// idx := 0
@@ -117,15 +116,14 @@ func main() {
 				// }
 				copy(final[24:], file_path_buff)
 
-				// idx = 0 
+				// idx = 0
 				// for i := len(file_path_buff); i < len(content_buff); i ++ {
 				// 	final[i] = content_buff[idx]
 				// 	idx++
 				// }
 				copy(final[len(file_path_buff):len(content_buff)], content_buff)
-				// b := make([]byte, 8)
+				test_senddata(final, byte_order)
 				offset += bytesRead
-				test_senddata(final)
 				//TODO: conn.Write(final)
 			}
 		}
@@ -140,8 +138,35 @@ func main() {
 		defer listener.Close()
 
 		conn, err := listener.Accept()
-		// TODO: send byte order
-		// conn
+		byte_order := get_os_indianness()
+		switch byte_order {
+		case binary.BigEndian:
+			endianness_indicator := make([]byte, 4)
+			byte_order.PutUint32(endianness_indicator, 0x12345678)
+			_, err := conn.Write(endianness_indicator)
+			if err != nil {
+				log.Fatalln(err)
+				return
+			}
+
+		case binary.LittleEndian:
+			endianness_indicator := make([]byte, 4)
+			byte_order.PutUint32(endianness_indicator, 0x12345678)
+			_, err := conn.Write(endianness_indicator)
+			if err != nil {
+				log.Fatalln(err)
+				return
+			}
+		default:
+			endianness_indicator := make([]byte, 4)
+			byte_order.PutUint32(endianness_indicator, 0x12345678)
+			_, err := conn.Write(endianness_indicator)
+			if err != nil {
+				log.Fatalln(err)
+				return
+			}
+		}
+
 		for {
 			if err != nil {
 				log.Fatalln(err)
@@ -165,16 +190,15 @@ func main() {
 	}
 }
 
-func test_senddata(buff []byte) error {
-	// fmt.Println(buff)
-	filename_length := binary.LittleEndian.Uint64(buff[0:8])
-	content_length := binary.LittleEndian.Uint64(buff[8:16])
-	offset := binary.LittleEndian.Uint64(buff[16:24])
-	fmt.Println("DEBUG: OFFSET: ",offset)
+func test_senddata(buff []byte, byteorder binary.ByteOrder) error {
+	filename_length := byteorder.Uint64(buff[0:8])
+	content_length := byteorder.Uint64(buff[8:16])
+	offset := byteorder.Uint64(buff[16:24])
+	fmt.Println("DEBUG: OFFSET: ", offset)
 	filename := string(buff[24:filename_length])
-	fmt.Println("DEBUG: FILENAME",filename)
+	fmt.Println("DEBUG: FILENAME", filename)
 	content := string(buff[filename_length:content_length])
-	fmt.Println("DEBUG: CONTENT",content)
+	fmt.Println("DEBUG: CONTENT", content)
 	return nil
 }
 
@@ -185,7 +209,7 @@ func handle_data(buff []byte) error {
 
 	path := get_data(path_buff, 300)
 	content := get_data(content_buff, 2000)
-	offset := binary.LittleEndian.Uint64(offset_buff)
+	offset := binary.LittleEndian.Uint64(offset_buff) // todo: REPLACE this
 
 	directory, fppath := filepath.Split(path)
 	if len(directory) == 0 {
@@ -230,6 +254,21 @@ func handle_data(buff []byte) error {
 	}
 }
 
+func get_os_indianness() binary.ByteOrder {
+	var x uint16 = 0x0102
+	bytes := [2]byte{byte(x), byte(x >> 8)}
+
+	// Check if the bytes are stored in little-endian order or big-endian order
+	if bytes[0] == 0x02 && bytes[1] == 0x01 {
+		return binary.LittleEndian
+	} else if bytes[0] == 0x01 && bytes[1] == 0x02 {
+		return binary.BigEndian
+	} else {
+		// This should not happen, but return a default value if it does
+		fmt.Println("Unknown byte order, defaulting to BigEndian")
+	}
+	return binary.BigEndian
+}
 
 func get_data(data []byte, size int) string {
 	content := make([]byte, size)
@@ -255,7 +294,6 @@ func gen_password(length uint8) string {
 	}
 	return string(b)
 }
-
 
 func FilePathWalkDir(root string) ([]string, error) {
 	var skip = []string{
