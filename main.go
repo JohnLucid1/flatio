@@ -22,10 +22,10 @@ const (
 	FLSIZE = 2000
 	FPSIZE = 300
 	PSSIZE = 100
+	WHOLE  = 2400
 )
 
-// TODO:
-// TODO: implement incription based on a key :)
+// TODOOO: Rewrite the system so the first 8 bytes are the length of the filename, second 8 bytes are the length of content, and third 8 bytes is the offset
 // TODO: Add a readme
 // TODO: needs refactoring
 func main() {
@@ -51,10 +51,23 @@ func main() {
 			return
 		}
 
+		var endianness_indicator uint32
+		err = binary.Read(conn, binary.BigEndian, &endianness_indicator)
+		if err != nil {
+			log.Fatalln(err.Error())
+			return	
+		}
+		var byte_order binary.ByteOrder
+
+		if endianness_indicator == 0x12345678{ 
+			byte_order = binary.BigEndian
+		}else if endianness_indicator == 0x78563412 {
+			byte_order = binary.LittleEndian
+		}
+
 		for _, value := range files {
-			file_buff := make([]byte, FLSIZE)
-			file_path_buff := Package_filepath(value)
-			offset := 0
+			filepath_buff := make([]byte, 8)
+			byte_order.PutUint64(filepath_buff, uint64(len(value)))
 
 			file, err := os.Open(value)
 			if err != nil {
@@ -62,8 +75,12 @@ func main() {
 				return
 			}
 
+			content_buff := make([]byte, FLSIZE)
+			file_path_buff := []byte(value) 
+			offset := 0
+
 			for {
-				bytesRead, err := file.Read(file_buff)
+				bytesRead, err := file.Read(content_buff)
 				if err == io.EOF {
 					fmt.Println("breaking here")
 					break
@@ -72,27 +89,44 @@ func main() {
 					break
 				}
 
-				testbuff := make([]byte, 2308)
-				for i, v := range file_path_buff {
-					testbuff[i] = v
-				}
+				final := make([]byte, WHOLE)
+				copy(final[0:len(filepath_buff)], filepath_buff)
+				
+				content_size := make([]byte, 8)
+				byte_order.PutUint64(content_size, uint64(bytesRead))
+				// idx := 0
+				// for i := 8; i < len(content_size); i ++ {
+				// 	final[i] = content_size[idx] // size of content
+				// 	idx ++
+				// }
+				copy(final[8:8+len(content_size)], content_size)
 
-				idx := 0
-				for i := 300; i < 2300; i++ {
-					testbuff[i] = file_buff[idx]
-					idx++
-				}
+				// idx = 0
+				offset_buff := make([]byte, 8)
+				byte_order.PutUint64(offset_buff, uint64(offset))
+				// for i := 16; i < len(offset_buff); i ++ {
+				// 	final[i] = offset_buff[idx] // size of offset
+				// 	idx ++
+				// }
+				copy(final[16:16+len(offset_buff)], offset_buff)
 
-				b := make([]byte, 8)
-				binary.LittleEndian.PutUint64(b, uint64(offset))
+				// idx = 0
+				// for i := 24; i <  len(file_path_buff); i ++ {
+				// 	final[i] = file_path_buff[idx]
+				// 	idx++
+				// }
+				copy(final[24:], file_path_buff)
+
+				// idx = 0 
+				// for i := len(file_path_buff); i < len(content_buff); i ++ {
+				// 	final[i] = content_buff[idx]
+				// 	idx++
+				// }
+				copy(final[len(file_path_buff):len(content_buff)], content_buff)
+				// b := make([]byte, 8)
 				offset += bytesRead
-				idx = 0
-				for i := 2300; i < 2308; i++ {
-					testbuff[i] = b[idx]
-					idx++
-				}
-				conn.Write(testbuff)
-
+				test_senddata(final)
+				//TODO: conn.Write(final)
 			}
 		}
 		conn.Close()
@@ -105,13 +139,14 @@ func main() {
 		}
 		defer listener.Close()
 
+		conn, err := listener.Accept()
+		// TODO: send byte order
+		// conn
 		for {
-			conn, err := listener.Accept()
 			if err != nil {
 				log.Fatalln(err)
 				return
 			}
-			defer conn.Close()
 
 			buffer := make([]byte, 2308)
 			_, err = conn.Read(buffer)
@@ -125,8 +160,22 @@ func main() {
 				log.Fatalln(err)
 				return
 			}
+			defer conn.Close()
 		}
 	}
+}
+
+func test_senddata(buff []byte) error {
+	// fmt.Println(buff)
+	filename_length := binary.LittleEndian.Uint64(buff[0:8])
+	content_length := binary.LittleEndian.Uint64(buff[8:16])
+	offset := binary.LittleEndian.Uint64(buff[16:24])
+	fmt.Println("DEBUG: OFFSET: ",offset)
+	filename := string(buff[24:filename_length])
+	fmt.Println("DEBUG: FILENAME",filename)
+	content := string(buff[filename_length:content_length])
+	fmt.Println("DEBUG: CONTENT",content)
+	return nil
 }
 
 func handle_data(buff []byte) error {
@@ -153,7 +202,7 @@ func handle_data(buff []byte) error {
 
 		return nil
 	} else {
-		// TODO: parse directory and replace 
+		// TODO: parse directory and replace
 		if runtime.GOOS == "darwin" {
 			directory = strings.ReplaceAll("\\", directory, "/")
 			path = strings.ReplaceAll("\\", path, "/")
@@ -191,7 +240,7 @@ func get_data(data []byte, size int) string {
 			break
 		}
 		content[i] = data[i]
-		idx ++
+		idx++
 	}
 	return string(content[:idx])
 }
@@ -207,14 +256,6 @@ func gen_password(length uint8) string {
 	return string(b)
 }
 
-func Package_filepath(path string) [FPSIZE]byte {
-	var fl_path_arr [FPSIZE]byte
-	for key, value := range path {
-		fl_path_arr[key] = byte(value)
-	}
-
-	return fl_path_arr
-}
 
 func FilePathWalkDir(root string) ([]string, error) {
 	var skip = []string{
